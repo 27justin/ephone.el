@@ -1,0 +1,69 @@
+* ephone.el
+
+Manage telephony of your Smartphone from inside Emacs via [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/about/][ofono]].
+
+** Features
+
+- Hangup calls & and dial phone-numbers.
+- Answer incoming calls.
+- Hooks for various actions.
+- Supports multiple phones.
+- Supports multiple HCI Bluetooth controller.
+
+** Installation
+
+#+BEGIN_QUOTE
+INFO: Please make sure you have both D-BUS and [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/about/][ofonod]] installed and running before following along.
+#+END_QUOTE
+
+You can install ephone.el through Git:
+
+#+BEGIN_SRC bash
+  git clone https://github.com/27justin/ephone.el ~/.emacs.d/site-lisp/ephone.el
+#+END_SRC
+
+Then add the path to your ~load-path~ and ~(require)~, or ~(use-package)~ the package.
+#+BEGIN_SRC elisp
+  (add-to-list 'load-path "~/.emacs.d/site-lisp/ephone.el")
+  (require 'ephone)
+  (ephone--attach-dbus-hooks) ;; or
+  (use-package ephone
+    :init
+    (ephone--attach-dbus-hooks))
+  #+END_SRC
+
+After which you can re-evaluate your config, or restart Emacs.
+
+** Usage
+
+ephone.el's interactive functions are prefixed with *ephone/*.
+
+Here an overview of said functions.
+#+BEGIN_SRC elisp
+  (ephone/dial "<number>")
+  (ephone/dial-last-number)
+  (ephone/hangup) ;; Also used to reject incoming calls.
+  (ephone/answer)
+#+END_SRC
+
+*** Hooks
+
+ephone.el provides the following hooks
+#+BEGIN_SRC elisp
+  ephone-call-hook   ;; Runs when a call is either started or received.
+  ephone-hangup-hook ;; Runs when a call is ended.
+#+END_SRC
+
+** Examples
+
+A prominent use may be clocking out of the current org-task and starting a capture buffer whenever a call is received, or started.
+
+#+BEGIN_SRC elisp
+  (add-to-list 'org-capture-templates ("p" "Call" entry
+									   (file+headline "~/org/TASKS.org" "Calls")
+									   "* %T\n#+BEGIN_SRC elisp\n(ephone/hangup)\n#+END_SRC\n\n    %?"
+									   :clock-resume t :clock-in t))
+  (defun capture-received-call ()
+	(org-capture nil "p"))
+  (add-hook ephone-call-hook #'capture-received-call)
+#+END_SRC
