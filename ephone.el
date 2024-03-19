@@ -27,17 +27,18 @@
 (setq ephone--devices nil)
 
 (defun ephone--get-bt-address (object)
-  "Returns the Bluetooth address of a device. OBJECT is expected to be in the format of /hfp/org/bluez/hci0/dev_00_11_22_33_44_55."
+  "Returns the Bluetooth address of a device. OBJECT is expected to be in the
+   format of /hfp/org/bluez/hci0/dev_00_11_22_33_44_55."
   ;; The Bluetooth address is the last part of the object path
   (replace-regexp-in-string "_" ":" (replace-regexp-in-string "dev_" "" (car (last (split-string object "/"))))))
 
 (defun ephone--get-device-name (bt-device)
   "Get the name of a Bluetooth device. BT-DEVICE is expected to be in the format of 00:11:22:33:44:55."
   (let ((device-name (dbus-get-property :system
-									   "org.bluez"
-									   (format "/org/bluez/hci0/dev_%s" (replace-regexp-in-string ":" "_" bt-device))
-									   "org.bluez.Device1"
-									   "Name")))
+									    "org.bluez"
+									    (format "/org/bluez/hci0/dev_%s" (replace-regexp-in-string ":" "_" bt-device))
+									    "org.bluez.Device1"
+									    "Name")))
 	(if (not device-name)
 		(error "Could not get device name for %s" bt-device)
 	  device-name)))
@@ -49,22 +50,22 @@
 (defun ephone--get-hfp-devices()
   (let ((devices (dbus-introspect-get-all-nodes :system "org.ofono" "/hfp/org/bluez")))
 	(when (not devices)
-	  (warn "No Bluetooth devices found"))
+	  (display-warning "ephone" "No Bluetooth devices found"))
 	;; Filter out anything that is not /hfp/org/bluez/hci0/dev_*
 	(setq ephone--devices (seq-filter (lambda (device)
-							   (and (string-match-p "dev_" device) (not (string-match-p "voicecall" device))))
+							            (and (string-match-p "dev_" device) (not (string-match-p "voicecall" device))))
 									  devices))
 	;; Ofono/BlueZ may also cache devices that are currently not connected.
 	;; We need to filter those out.
 	(setq ephone--devices (seq-filter (lambda (device)
-							   (let ((bt-device (ephone--get-bt-address device)))
-								 (dbus-get-property :system
-													"org.bluez"
-													(concat "/" (string-join (cddr (split-string device "/")) "/"))
-													"org.bluez.Device1"
-													"Connected")))
+							            (let ((bt-device (ephone--get-bt-address device)))
+								          (dbus-get-property :system
+													         "org.bluez"
+													         (concat "/" (string-join (cddr (split-string device "/")) "/"))
+													         "org.bluez.Device1"
+													         "Connected")))
 									  ephone--devices))
-	ephone--devices))
+	ephone--devices)) 
 
 (defun ephone--call-added (path properties)
   (run-hooks 'ephone-call-hook))
@@ -78,15 +79,16 @@
   (if device
 	  (ephone--vcm-interface-send device "GetCalls")
 	(mapcar #'car (mapcar (lambda (device)
-			  (ephone--vcm-interface-send device "GetCalls"))
-			ephone--devices))))
+			                (ephone--vcm-interface-send device "GetCalls"))
+			              ephone--devices))))
 
 (defun ephone/select-device ()
   "Query available HFP capable Bluetooth device and select one.
   Returns the selected device's ofono object path."
   (ephone--get-hfp-devices)
   (if (not ephone--devices)
-	  (warn "No Bluetooth devices found")
+	  (progn (display-warning "ephone" "No Bluetooth devices found")
+		     nil)
 	;; Filter out anything that is not /hfp/org/bluez/hci0/dev_*
 	;; Then fetch the name of each device
 	(let* ((devices (mapcar (lambda (device)
@@ -105,27 +107,23 @@
 		 method
 		 args))
 
-(defun ephone--get-bt-device ()
-  "Get the Bluetooth device to use with ofonod."
-  (if (not ephone--bt-device)
-	  (ephone/select-device))
-  (format "/hfp/org/bluez/hci0/dev_%s" (replace-regexp-in-string ":" "_" (upcase ephone--bt-device))))
-
 (defun ephone--vcm-interface-send (object method &rest args)
-  "Call a method on ofono's VoiceCallManager."
-  (apply 'ephone--dbus-send
-		 object
-		 "org.ofono.VoiceCallManager"
-		 method
-		 args))
+  "Call a method on ofono's VoiceCallManager-Interface."
+  (when (and object method)
+	(apply 'ephone--dbus-send
+		   object
+		   "org.ofono.VoiceCallManager"
+		   method
+		   args)))
 
 (defun ephone--vc-interface-send (object method &rest args)
-  "Call a method on ofono's VoiceCall."
-  (apply 'ephone--dbus-send
-		 object
-		 "org.ofono.VoiceCall"
-		 method
-		 args))
+  "Call a method on ofono's VoiceCall-Interface."
+  (when (and object method)
+	(apply 'ephone--dbus-send
+		   object
+		   "org.ofono.VoiceCall"
+		   method
+		   args)))
 
 (defun ephone--maybe-select-device ()
   "Ask the user to select a device if multiple devices are available.
@@ -137,46 +135,64 @@
 	(car ephone--devices)))
 
 (defun ephone/dial (number)
-  "Call NUMBER."
+  "Call NUMBER.
+   Returns the D-BUS object path to the voice call."
   (interactive "sNumber: ")
-  ;; When the user has more than one device, prompt them to select one.
-  (ephone--vcm-interface-send (ephone--maybe-select-device) "Dial" (ephone--clean-number number) ""))
+  (let ((device (ephone--maybe-select-device)))
+	(if device
+		(ephone--vcm-interface-send (ephone--maybe-select-device) "Dial" (ephone--clean-number number) "")
+	  (progn (display-warning "ephone" "No devices available")
+			 nil))))
 
 (defun ephone/dial-last-number ()
   "Call the last number dial-ed."
   (interactive)
-  (ephone--vcm-interface-send (ephone--maybe-select-device) "DialLast"))
+  (let ((device (ephone--maybe-select-device)))
+	(if device
+		(ephone--vcm-interface-send device "DialLast")
+	  (progn (display-warning "ephone" "No devices available")
+			 nil))))
 
 (defun ephone/answer ()
   "Answer an incoming call."
   (interactive)
-  (let ((calls (ephone--get-calls)))
-	(when (not calls)
-	  (warn "No calls to answer"))
-	(ephone--vc-interface-send (caar calls) "Answer")))
+  (let ((device (ephone--maybe-select-device)))
+	(if device
+		(let ((calls (ephone--get-calls)))
+		  (if calls
+			  (ephone--vc-interface-send (caar calls) "Answer")
+			(progn (display-warning "ephone" "No calls to answer")
+				   nil)))
+	  (progn (display-warning "ephone" "No devices available")
+			 nil))))
 
 (defun ephone/hangup ()
   "Hang up the current (or incoming) call."
   (interactive)
-  (let ((calls (ephone--get-calls)))
-	(if (not calls)
-		(warn "No calls to hang up")
-	  (ephone--vc-interface-send (caar calls) "Hangup"))))
+  (let ((device (ephone--maybe-select-device)))
+	(if device
+		(let ((calls (ephone--get-calls)))
+		  (if calls
+			  (ephone--vc-interface-send (caar calls) "Hangup")
+			(progn (display-warning "ephone" "No calls to hangup")
+				   nil)))
+	  (progn (display-warning "ephone" "No devices available")
+			 nil))))
 
 (defun ephone--handle-modem-added (device &rest properties)
   "Attach D-Bus hooks to the modem at DEVICE (D-Bus object)."
   (add-to-list 'ephone--dbus-hooks (dbus-register-signal :system
-														"org.ofono"
-														device
-														"org.ofono.VoiceCallManager"
-														"CallAdded"
-														'ephone--call-added))
+														 "org.ofono"
+														 device
+														 "org.ofono.VoiceCallManager"
+														 "CallAdded"
+														 'ephone--call-added))
   (add-to-list 'ephone--dbus-hooks (dbus-register-signal :system
-														"org.ofono"
-														device
-														"org.ofono.VoiceCallManager"
-														"CallRemoved"
-														'ephone--call-removed)))
+														 "org.ofono"
+														 device
+														 "org.ofono.VoiceCallManager"
+														 "CallRemoved"
+														 'ephone--call-removed)))
 
 (defun ephone--attach-dbus-hooks ()
   "Attach hooks to the D-BUS interface and refresh connected HFP devices."
@@ -184,27 +200,32 @@
 	(dolist (hook ephone--dbus-hooks)
 	  (dbus-unregister-object hook)))
   (add-to-list 'ephone--dbus-hooks (dbus-register-signal :system
-														"org.ofono"
-														"/"
-														"org.ofono.Manager"
-														"ModemAdded"
-														'ephone--handle-modem-added))
+														 "org.ofono"
+														 "/"
+														 "org.ofono.Manager"
+														 "ModemAdded"
+														 'ephone--handle-modem-added))
   ;; TODO: Support ModemRemoved to remove D-Bus hooks
   (setq ephone--devices (ephone--get-hfp-devices))
   (dolist (device ephone--devices)
 	;; Attach hooks to each device
-	  (ephone--handle-modem-added device)))
+	(ephone--handle-modem-added device)))
 
 (defun ephone/get-phone-number ()
-  ;; We can get the phone number by calling the GetProperties method on the VoiceCall object
-  ;; this will return a dictionary with the phone number and other properties
-  (let* (
-		 (object (caar (ephone--get-calls)))
-		 (properties (ephone--vc-interface-send object "GetProperties")))
-	(when (not properties)
-	  (warn "Could not get properties for %s" object))
-	;; The phone number is stored in the dictionary under the key "LineIdentification"
-	(caadr (assoc "LineIdentification" properties))))
+  "Returns the phone number of the first call active.
+   Returns nil if no phone or call is active.
+   Returns an empty string when the phone number is unknown to ofonod"
+  (if (ephone--maybe-select-device)
+	  (let* ((object (caar (ephone--get-calls)))
+			 (properties (ephone--vc-interface-send object "GetProperties")))
+		(when (not properties)
+		  (progn (display-warning "ephone" (format "Could not get properties for '%s'" object))
+				 nil))
+		;; The phone number is stored in the dictionary under the key "LineIdentification"
+		(caadr (assoc "LineIdentification" properties)))
+	(progn (display-warning "ephone" "No devices available")
+		   nil)))
+
 
 ;;
 ;; Org-link support for tel: links.
@@ -220,7 +241,6 @@
 									  ((eq 'latex backend)
 									   (format "\\href{tel:%s}{%s}" path desc))
 									  (t path)))
-						   :face '(:foreground "blue" :underline t))
-  )
+						   :face '(:foreground "blue" :underline t)))
 
 (provide 'ephone)
