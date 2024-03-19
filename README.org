@@ -2,16 +2,17 @@
 #+author: Justin Andreas Lacoste
 #+email: me@justin.cx
 
-Control the telephony stack of your smartphone from inside Emacs via [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/about/][ofono]].
+Control the telephony stack of your smartphone from inside Emacs
+via [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/about/][ofono]] and Bluetooth.
 
 * Features
 
 + Hangup calls & and dial phone-numbers.
 + Answer incoming calls.
 + Hooks for various actions.
-+ tel: Org-links
++ =tel:= Org-links
 + Supports multiple phones.
-+ Supports multiple HCI Bluetooth controller.
++ Supports multiple HCI Bluetooth controllers.
 
 * Demo
 
@@ -60,6 +61,8 @@ ephone.el provides the following hooks
 
 * Examples
 
+** Open a Capture-Buffer on incoming calls
+
 A prominent use-case may be clocking out of the current org-task and starting a capture buffer whenever a call is received, or started.
 
 #+BEGIN_SRC elisp
@@ -71,6 +74,8 @@ A prominent use-case may be clocking out of the current org-task and starting a 
     (org-capture nil "p"))
 (add-hook ephone-call-hook #'capture-received-call)
 #+END_SRC
+
+** Store HTML =tel:= inside org and immediately call them
 
 Another fairly useful feature are ~tel:~ org-links, with similar semantics to the ~href~ Attribute on HTML A-tags
 for those familiar.
