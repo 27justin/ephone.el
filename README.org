@@ -1,8 +1,10 @@
-* ephone.el
+#+title: ephone.el
+#+author: Justin Andreas Lacoste
+#+email: me@justin.cx
 
-Manage telephony of your Smartphone from inside Emacs via [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/about/][ofono]].
+Control the telephony stack of your smartphone from inside Emacs via [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/about/][ofono]].
 
-** Features
+* Features
 
 + Hangup calls & and dial phone-numbers.
 + Answer incoming calls.
@@ -11,13 +13,17 @@ Manage telephony of your Smartphone from inside Emacs via [[https://git.kernel.o
 + Supports multiple phones.
 + Supports multiple HCI Bluetooth controller.
 
-** Installation
+* Demo
+
+#+html: <video loop autoplay controls src="https://github.com/27justin/ephone.el/assets/72092018/46384009-7e8e-457b-9882-2330fef07f80"></video>
+
+* Installation
 
 #+BEGIN_QUOTE
 INFO: Please make sure you have both D-BUS and [[https://git.kernel.org/pub/scm/network/ofono/ofono.git/about/][ofonod]] installed and running before following along.
 #+END_QUOTE
 
-You can install ephone.el through Git:
+You can install ephone.el through git:
 
 #+BEGIN_SRC bash
   git clone https://github.com/27justin/ephone.el ~/.emacs.d/site-lisp/ephone.el
@@ -32,7 +38,7 @@ Then add the path to your ~load-path~ and ~(require)~ the package.
 
 After which you can re-evaluate your config, or restart Emacs.
 
-** Usage
+* Usage
 
 ephone.el's interactive functions are prefixed with *ephone/*.
 
@@ -44,7 +50,7 @@ Here an overview of said functions.
   (ephone/answer)
 #+END_SRC
 
-*** Hooks
+** Hooks
 
 ephone.el provides the following hooks
 #+BEGIN_SRC elisp
@@ -52,7 +58,7 @@ ephone.el provides the following hooks
   ephone-hangup-hook ;; Runs when a call is ended.
 #+END_SRC
 
-** Examples
+* Examples
 
 A prominent use-case may be clocking out of the current org-task and starting a capture buffer whenever a call is received, or started.
 
@@ -71,5 +77,5 @@ for those familiar.
 Running ~C-c C-o~ / ~org-open-at-point~ on these links will run ~ephone/dial~ with the given number.
 
 
-** VERIFY Limitations
-+ ~ephone/get-phone-number~ return ~nil~ on outgoing calls.
+* Limitations
++ ~ephone/get-phone-number~ returns ~nil~ on outgoing calls.
