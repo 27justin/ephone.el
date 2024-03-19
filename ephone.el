@@ -195,5 +195,32 @@
 	;; Attach hooks to each device
 	  (ephone--handle-modem-added device)))
 
+(defun ephone/get-phone-number ()
+  ;; We can get the phone number by calling the GetProperties method on the VoiceCall object
+  ;; this will return a dictionary with the phone number and other properties
+  (let* (
+		 (object (caar (ephone--get-calls)))
+		 (properties (ephone--vc-interface-send object "GetProperties")))
+	(when (not properties)
+	  (warn "Could not get properties for %s" object))
+	;; The phone number is stored in the dictionary under the key "LineIdentification"
+	(caadr (assoc "LineIdentification" properties))))
+
+;;
+;; Org-link support for tel: links.
+;;
+(with-eval-after-load "org"
+  (org-link-set-parameters "tel"
+						   :follow (lambda (number)
+									 (ephone/dial number))
+						   :export (lambda (path desc backend)
+									 (cond
+									  ((eq 'html backend)
+									   (format "<a href=\"tel:%s\">%s</a>" path desc))
+									  ((eq 'latex backend)
+									   (format "\\href{tel:%s}{%s}" path desc))
+									  (t path)))
+						   :face '(:foreground "blue" :underline t))
+  )
 
 (provide 'ephone)
