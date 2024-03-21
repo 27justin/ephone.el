@@ -65,7 +65,7 @@
                                                              "org.bluez.Device1"
                                                              "Connected")))
                                       ephone--devices))
-    ephone--devices)) 
+    ephone--devices))
 
 (defun ephone--call-added (path properties)
   (run-hooks 'ephone-call-hook))

@@ -68,7 +68,7 @@ A prominent use-case may be clocking out of the current org-task and starting a 
 #+BEGIN_SRC elisp
 (add-to-list 'org-capture-templates ("p" "Call" entry
     (file+headline "~/org/TASKS.org" "Calls")
-    "* %T %(ephone/get-phone-number)\n#+BEGIN_SRC elisp\n(ephone/hangup)\n#+END_SRC\n\n    %?"
+    "* %T %(ephone/get-phone-number)\n    %?"
     :clock-resume t :clock-in t))
 (defun capture-received-call ()
     (org-capture nil "p"))
