@@ -15,16 +15,38 @@
 ;; computer via Bluetooth.
 ;; With this package you can send and receive phone calls, attach events. etc.
 
+
+;;; Requirements
+(require 'dbus)
+(require 'org)
+
 ;;; Code:
 
 ;; Hooks
-(setq ephone-call-hook nil)
-(setq ephone-hangup-hook nil)
-;;;;;;;;;;
+(defvar ephone-call-hook   nil
+  "Hook that is run when a call is added.")
 
-(setq ephone--dbus-hooks nil)
-(setq ephone--current-device nil)
-(setq ephone--devices nil)
+(defvar ephone-hangup-hook nil
+  "Hook that is run when a call is removed.")
+
+;; General variables
+(defvar ephone--dbus-hooks     nil)
+(defvar ephone--current-device nil)
+(defvar ephone--devices        nil)
+
+;;; Periodic-scanning
+(defvar ephone-periodic-scan                   nil
+"Periodically scan for new devices. Default is nil.")
+
+(defvar ephone-periodic-scan-break-after-found nil
+"Break the periodic scanning after a device is found.
+Default is nil.")
+
+(defvar ephone-periodic-scan-interval          "3 min"
+"Time interval for periodic scanning. Default is 3 minutes.
+Can be any string compatible with =run-at-time=.")
+
+(defvar ephone--periodic-scanner               nil)
 
 (defun ephone--get-bt-address (object)
   "Returns the Bluetooth address of a device. OBJECT is expected to be in the
@@ -33,7 +55,8 @@
   (replace-regexp-in-string "_" ":" (replace-regexp-in-string "dev_" "" (car (last (split-string object "/"))))))
 
 (defun ephone--get-device-name (bt-device)
-  "Get the name of a Bluetooth device. BT-DEVICE is expected to be in the format of 00:11:22:33:44:55."
+  "Get the name of a Bluetooth device. BT-DEVICE is expected to be in the
+  format of 00:11:22:33:44:55."
   (let ((device-name (dbus-get-property :system
                                         "org.bluez"
                                         (format "/org/bluez/hci0/dev_%s" (replace-regexp-in-string ":" "_" bt-device))
@@ -58,12 +81,11 @@
     ;; Ofono/BlueZ may also cache devices that are currently not connected.
     ;; We need to filter those out.
     (setq ephone--devices (seq-filter (lambda (device)
-                                        (let ((bt-device (ephone--get-bt-address device)))
-                                          (dbus-get-property :system
-                                                             "org.bluez"
-                                                             (concat "/" (string-join (cddr (split-string device "/")) "/"))
-                                                             "org.bluez.Device1"
-                                                             "Connected")))
+                                        (dbus-get-property :system
+                                                           "org.bluez"
+                                                           (concat "/" (string-join (cddr (split-string device "/")) "/"))
+                                                           "org.bluez.Device1"
+                                                           "Connected"))
                                       ephone--devices))
     ephone--devices))
 
@@ -199,13 +221,9 @@
   (when ephone--dbus-hooks
     (dolist (hook ephone--dbus-hooks)
       (dbus-unregister-object hook)))
+  ;; TODO: Find a way to attach hooks to new devices using BlueZ or ofono
+  ;; signals.
 
-  (add-to-list 'ephone--dbus-hooks (dbus-register-signal :system
-                                                         "org.ofono"
-                                                         "/"
-                                                         "org.ofono.Manager"
-                                                         "ModemAdded"
-                                                         'ephone--handle-modem-added))
   (setq ephone--devices (ephone--get-hfp-devices))
   (dolist (device ephone--devices)
     ;; Attach hooks to each device
@@ -233,22 +251,13 @@
        (ephone--attach-dbus-hooks)
        (message "Found %d device(s)." (length ephone--devices)))
 
-
-(when (not (boundp 'ephone-periodic-scan))
-  (setq ephone-periodic-scan nil))
-
-(when (not (boundp 'ephone-periodic-scan-break-after-found))
-  (setq ephone-periodic-scan-break-after-found nil))
-
-(when (not (boundp 'ephone-periodic-scan-interval))
-  (setq ephone-periodic-scan-interval "3 min"))
-
-(when ephone-periodic-scan
-  (defun ephone/periodic-scan ()
+(defun ephone/periodic-scan ()
     (ephone/scan)
     (when (and ephone-periodic-scan-break-after-found (> (length ephone--devices) 0))
       (cancel-timer ephone--periodic-scanner)))
-    (setq ephone--periodic-scanner (run-at-time ephone-periodic-scan-interval t #'ephone/periodic-scan)))
+
+(when ephone-periodic-scan
+  (setq ephone--periodic-scanner (run-at-time ephone-periodic-scan-interval t #'ephone/periodic-scan)))
 
 
 ;;
