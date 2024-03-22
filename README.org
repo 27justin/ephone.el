@@ -33,9 +33,32 @@ You can install ephone.el through git:
 Then add the path to your ~load-path~ and ~(require)~ the package.
 #+BEGIN_SRC elisp
   (add-to-list 'load-path "~/.emacs.d/site-lisp/ephone.el")
+  (setq ephone-periodic-scan t)
+  (setq ephone-scan-interval "3 min")
+  (setq ephone-periodic-scan-break-after-found t)
   (require 'ephone)
   (ephone--attach-dbus-hooks)
   #+END_SRC
+
+#+BEGIN_QUOTE
+NOTE: About =ephone-periodic-scan= / =ephone-scan-interval=.
+
+ephone.el queries the ofono D-Bus once during =ephone--attach-dbus-hooks=,
+given this, ephone.el won't properly attach to any device you connect **after**
+loading the plugin.
+
+To circumvent this, you can either manually run =M-x ephone/scan RET= after connecting your phone, or facilitate the
+given variables.
+
+When =ephone-periodic-scan= is =t=, ephone.el sets up a timer
+running every =ephone-scan-interval= (default 3 min), this timer will
+automatically call =ephone/scan= for you to make sure your phone
+keeps / gets connected to the Emacs hooks.
+
+Additionally you may also set =ephone-periodic-scan-break-after-found= to =t=,
+with this ephone.el will also automatically remove it's perodic-scan timer
+after attaching to one device.
+#+END_QUOTE
 
 After which you can re-evaluate your config, or restart Emacs.
 
@@ -49,7 +72,15 @@ Here an overview of said functions.
   (ephone/dial-last-number)
   (ephone/hangup) ;; Also used to reject incoming calls.
   (ephone/answer)
+  (ephone/scan)   ;; Re-fetch & attach devices from ofono
 #+END_SRC
+
+Some other non-interactive functions you might want to use.
+#+BEGIN_SRC elisp
+  (ephone/get-phone-number) ;; Returns the Phone-number of the active call as a string,
+                            ;; or nil
+#+END_SRC
+
 
 ** Hooks
 
@@ -77,6 +108,6 @@ A prominent use-case may be clocking out of the current org-task and starting a 
 
 ** Store HTML =tel:= inside org and immediately call them
 
-Another fairly useful feature are ~tel:~ org-links, with similar semantics to the ~href~ Attribute on HTML A-tags
+Another fairly useful feature are ~tel:~ org-links, with similar semantics to the ~href~ Attribute on HTML =<a>=-tags
 for those familiar.
 Running ~C-c C-o~ / ~org-open-at-point~ on these links will run ~ephone/dial~ with the given number.

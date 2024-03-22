@@ -1,9 +1,9 @@
-;;; ephone.el --- Leverage ofonod through Emacs -*- lexical-binding: t; -*-
+;;; ephone.el --- Control HFP-devices in Emacs through ofonod -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2024  Justin Andreas Lacoste
 
 ;; Author: Justin Andreas Lacoste <me@justin.cx>
-;; URL: https://github.com/27justin/ephone
+;; URL: https://github.com/27justin/ephone.el
 ;; Version: 0.1
 ;; Package-Requires: ((emacs "?"))
 ;; Keywords: comm, convenience
@@ -199,13 +199,13 @@
   (when ephone--dbus-hooks
     (dolist (hook ephone--dbus-hooks)
       (dbus-unregister-object hook)))
+
   (add-to-list 'ephone--dbus-hooks (dbus-register-signal :system
                                                          "org.ofono"
                                                          "/"
                                                          "org.ofono.Manager"
                                                          "ModemAdded"
                                                          'ephone--handle-modem-added))
-  ;; TODO: Support ModemRemoved to remove D-Bus hooks
   (setq ephone--devices (ephone--get-hfp-devices))
   (dolist (device ephone--devices)
     ;; Attach hooks to each device
@@ -225,6 +225,30 @@
         (caadr (assoc "LineIdentification" properties)))
     (progn (display-warning "ephone" "No devices available")
            nil)))
+
+
+(defun ephone/scan ()
+       "Force a check on the ofono D-Bus interface."
+       (interactive)
+       (ephone--attach-dbus-hooks)
+       (message "Found %d device(s)." (length ephone--devices)))
+
+
+(when (not (boundp 'ephone-periodic-scan))
+  (setq ephone-periodic-scan nil))
+
+(when (not (boundp 'ephone-periodic-scan-break-after-found))
+  (setq ephone-periodic-scan-break-after-found nil))
+
+(when (not (boundp 'ephone-periodic-scan-interval))
+  (setq ephone-periodic-scan-interval "3 min"))
+
+(when ephone-periodic-scan
+  (defun ephone/periodic-scan ()
+    (ephone/scan)
+    (when (and ephone-periodic-scan-break-after-found (> (length ephone--devices) 0))
+      (cancel-timer ephone--periodic-scanner)))
+    (setq ephone--periodic-scanner (run-at-time ephone-periodic-scan-interval t #'ephone/periodic-scan)))
 
 
 ;;
