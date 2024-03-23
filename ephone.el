@@ -89,10 +89,10 @@ Can be any string compatible with =run-at-time=.")
                                       ephone--devices))
     ephone--devices))
 
-(defun ephone--call-added (path properties)
+(defun ephone--call-added (_ _) ;; (object path, properties)
   (run-hooks 'ephone-call-hook))
 
-(defun ephone--call-removed (path)
+(defun ephone--call-removed (_) ;; (object path)
   (run-hooks 'ephone-hangup-hook))
 
 (defun ephone--get-calls (&rest device)
@@ -201,7 +201,7 @@ Can be any string compatible with =run-at-time=.")
       (progn (display-warning "ephone" "No devices available")
              nil))))
 
-(defun ephone--handle-modem-added (device &rest properties)
+(defun ephone--handle-modem-added (device &rest _) ;; (device, properties)
   "Attach D-Bus hooks to the modem at DEVICE (D-Bus object)."
   (add-to-list 'ephone--dbus-hooks (dbus-register-signal :system
                                                          "org.ofono"
